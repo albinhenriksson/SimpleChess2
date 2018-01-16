@@ -10,7 +10,7 @@ let whitePlayerColor     = ConsoleColor.Green
 let blackPlayerColor     = ConsoleColor.Magenta
 let boardColor           = ConsoleColor.DarkBlue
 
-
+// Run game:
 let game = GamePlay.Game(
             numberOfHumanPlayers,
             whitePlayerColor,
