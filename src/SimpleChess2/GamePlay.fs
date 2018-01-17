@@ -140,9 +140,7 @@ module GamePlay =
                         do printfn "Invalid move: Not your piece."
                         this.nextMove(board)
                     elif not (List.contains (move.[1]) 
-                                (movePiece.availableMoves(board).[1])
-                                    || List.contains (move.[1])
-                                        (movePiece.availableMoves(board).[0]))
+                                (movePiece.availableMoves(board).[1]))
                     then
                         do printfn "Invalid move: Not legal."
                         this.nextMove(board)

@@ -26,7 +26,7 @@ module Chess =
         /// at hand .
         abstract member candiateRelativeMoves : Position list list
 
-        /// Available moves and neighbours ([(1 ,0) ; (2 ,0) ;...] , [ p1 ; p2 ])
+        /// Available moves and neighbours ([(1 ,0); (2 ,0);...], [ p1 ; p2 ])
         abstract member availableMoves : Board -> Position list list
 
     // / A board
@@ -37,10 +37,12 @@ module Chess =
             let (rank, file) = pos // square coordinate
             if rank < 0 || rank > 7 || file < 0 || file > 7 then None
             else Some (rank , file)
+
         /// Convert relative coordinates to absolute and remove out
         /// of board coordinates .
-        let relativeToAbsolute (pos:Position) (lst:Position list) : Position list =
-                let addPair (a:int,b:int) (c:int,d:int) : Position =
+        let relativeToAbsolute (pos:Position) (lst:Position list)
+            :Position list =
+                let addPair (a:int,b:int) (c:int,d:int) :Position =
                     (a+c,b+d)
                 // Add origin and delta positions
                 List.map (addPair pos) lst
@@ -53,7 +55,9 @@ module Chess =
             and set (a:int,b:int) (p:chessPiece option) =
                 if p.IsSome then p.Value.position <- Some (a,b)
                 _array.[a,b] <- p
+
         /// Produce string of board for, e.g., the printfn function.
+        /// (Only added letters and numbers.)
         override this.ToString() =
             let rec boardStr (i:int) (j:int) : string =
                 match (i,j) with
@@ -69,10 +73,12 @@ module Chess =
                         let lineSep = "   " + String.replicate (8*4-1) "-"
                         match (i,j) with
                         (0,0) ->
-                            let str = (sprintf "%s\n%i | %1s " lineSep (8-i) pieceStr)
+                            let str = (sprintf "%s\n%i | %1s "
+                                        lineSep (8-i) pieceStr)
                             str + boardStr 0 1
                         | (i,7) ->
-                            let str = sprintf "| %1s |\n%s\n%i " pieceStr lineSep (7-i)
+                            let str = sprintf "| %1s |\n%s\n%i "
+                                        pieceStr lineSep (7-i)
                             str + boardStr (i+1) 0
                         | (i,j) ->
                             let str = sprintf "| %1s " pieceStr
@@ -85,10 +91,12 @@ module Chess =
             this.[fst target, snd target] <- this.[fst source , snd source]
             this.[fst source , snd source] <- None
         /// Find the tuple of empty squares and first neighbour if any .
-        member this.getVacantNOccupied (run:Position list) : (Position list * (chessPiece option)) =
+        member this.getVacantNOccupied (run:Position list)
+            :(Position list * (chessPiece option)) =
                 try
                     // Find index of first non - vacant square of a run
-                    let idx = List.findIndex (fun (i,j) -> this.[i,j].IsSome ) run
+                    let idx = List.findIndex (fun (i,j) -> this.[i,j].IsSome)
+                                run
                     let (i,j) = run.[idx]
                     let piece = this.[i,j] // The first non - vacant neighbour
                     if idx = 0 then ([], piece )
@@ -96,18 +104,20 @@ module Chess =
                 with
                     _ -> (run, None) // outside the board
         /// find the list of all empty squares and list of neighbours
-        member this.getVacantNNeighbours (piece:chessPiece) : (Position list * chessPiece list) =
+        member this.getVacantNNeighbours (piece:chessPiece)
+            :(Position list * chessPiece list) =
             match piece.position with
                 None ->
                     ([],[])
                 | Some p ->
                     let convertNWrap =
                         (relativeToAbsolute p) >> this.getVacantNOccupied
-                    let vacantPieceLists = List.map convertNWrap piece.candiateRelativeMoves
+                    let vacantPieceLists = List.map convertNWrap
+                                            piece.candiateRelativeMoves
                     // Extract and merge lists of vacant squares
                     let vacant = List.collect fst vacantPieceLists
                     // Extract and merge lists of first obstruction pieces and
-                    // filter out own pieces
+                    // filter out own pieces 
                     let opponent =
                         vacantPieceLists
                         |> List.choose snd
