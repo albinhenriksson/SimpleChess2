@@ -296,7 +296,7 @@ module GamePlay =
                 if (this.isCheck(players.[pTurn].pieces.[0].position.Value,
                         players.[if pTurn = 0 then 1 else 0]))
                 then
-                    printf "%s is in check!" players.[pTurn].name
+                    printf "\n%s is in check!\n" players.[pTurn].name
                     nextM <- players.[pTurn].nextMove(board)
                 else
                     // Ask player for next move:
