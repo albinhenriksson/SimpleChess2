@@ -1,9 +1,12 @@
 namespace SimpleChess2
 
 open System
+
 module GamePlay =
     open Chess
     open Pieces
+
+    // For later use:
 
     //// Methods:
 
@@ -163,6 +166,8 @@ module GamePlay =
         /// <returns>The chosen source and target positions in a list.</returns>
         override this.nextMove(board:Board) :Position list =
             let r = Random();
+            //let game = new Game ()
+
             let rPiece = this.pieces |> Seq.item (r.Next this.pieces.Length)
             let aMoves = rPiece.availableMoves(board).[1]
             let computerMoves = [rPiece.position.Value; aMoves |>
@@ -171,13 +176,15 @@ module GamePlay =
             // return:
             computerMoves
     end
-
     /// <summary>Simulation of a chess game.</summary>
     /// <param name="nHumans">Number of human players.</param>
     /// <param name="wCol">White player color.</param>
     /// <param name="bCol">Black player color.</param>
     /// <param name="boardCol">Color of the chessboard.</param>
     type Game(
+                players:Player list,
+                wPieces:chessPiece [],
+                bPieces:chessPiece [],
                 nHumans:int,
                 wCol:ConsoleColor,
                 bCol:ConsoleColor,
@@ -236,32 +243,15 @@ module GamePlay =
             check
 
         /// <summary>Start and run the game.</summary>
-        member this.run() =
+        member this.run() :(Color * int) =
         
-            let mutable players :Player list = []
+            let mutable players :Player list = players
             let mutable colors = [White;Black]
             let mutable  nextM :Position list = []
 
-            // Add human(s):
-            for i in [0..(nHumans-1)] do
-                players <- List.append players
-                    [Human((sprintf "Human-%i (%A)" (i+1) colors.[0]), colors.[0])]
-                colors <- colors.Tail
-            
-            //Add computer(s):
-            for i in [1..(2-nHumans)] do
-                    players <- List.append players
-                        [Computer((sprintf "Computer-%i (%A)"
-                                    i colors.[0]), colors.[0])]
-                    colors <- colors.Tail
-
             // Hand out the pieces:
-            players.[0].pieces <- [|
-                king (White) :> chessPiece;
-                rook (White) :> chessPiece|]
-            players.[1].pieces <- [|
-                king (Black) :> chessPiece;
-                rook (Black) :> chessPiece|]
+            players.[0].pieces <- wPieces 
+            players.[1].pieces <- bPieces
 
             // Place pieces on the board
             board.[0,0] <- Some players.[0].pieces.[0] // White king.
@@ -276,6 +266,7 @@ module GamePlay =
             
             // Game variables:
             let mutable turnCount = 0
+            let mutable whoWon :Color option = None
             let mutable checkmate = false
             let mutable pTurn     = 0 // whoose turn it is.
 
@@ -334,10 +325,15 @@ module GamePlay =
                 then
                     cprintf wCol (sprintf "\nCheckmate! %s won the game."
                         (players.[0].name))
+                    whoWon <- Some players.[0].color
                     checkmate <- true
                 elif players.[0].pieces.[0].availableMoves(board).[1].IsEmpty
                 then
                     cprintf bCol (sprintf "\nCheckmate! %s won the game."
                         (players.[1].name))
+                    whoWon <- Some players.[1].color
                     checkmate <- true
+            (whoWon.Value, turnCount)
     end
+
+    
