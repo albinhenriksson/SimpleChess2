@@ -144,15 +144,26 @@ module Pieces =
         let swap f a b = f b a
         override this.candiateRelativeMoves =
             List.map (swap List.map [1..7]) indToRel
-        
+
+        /// <summary>
+        /// Finds available moves for the rook.
+        /// </summary>
+        /// <param name="board">Chess board the move is to be played on.</param>
+        /// <returns>
+        /// A list with two Position lists in it. The first one with attack
+        /// moves and the second one all available moves as
+        /// [attackMoves;availableMoves].
+        /// </returns>        
         override this.availableMoves (board:Board) : Position list list =
 
             let mutable avMoves = (fst (board.getVacantNNeighbours this))
-            let mutable attackMoves :Position list = []
-
-
+            let mutable attackMoves :Position list = 
+                [for p in snd (board.getVacantNNeighbours this) do
+                    if p.color <> this.color &&
+                        p.nameOfType <> "king"
+                    then yield p.position.Value]
 
             // Return:
-            [attackMoves;List.append attackMoves avMoves]
+            [attackMoves ;List.append attackMoves avMoves]
 
         override this.nameOfType with get() = "rook"

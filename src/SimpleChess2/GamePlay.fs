@@ -223,11 +223,24 @@ module GamePlay =
                 | '-' -> cprintf boardCol (string c)
                 | _ -> printf "%c" c)
 
+        /// <summary>Checks if a p1 is in check.</summary>
+        /// <param name="kingPos">The kings position.</param>
+        /// <param name="enemy">The enemy player.</param>
+        /// <returns>True if in check, else false.</returns>
+        member this.isCheck(kingPos:Position,enemy:Player) :bool =
+            let mutable check = false
+            for piece in enemy.pieces do
+                if List.contains kingPos
+                    (piece.availableMoves(board)).[0]
+                then check <- true
+            check
+
         /// <summary>Start and run the game.</summary>
         member this.run() =
         
             let mutable players :Player list = []
             let mutable colors = [White;Black]
+            let mutable  nextM :Position list = []
 
             // Add human(s):
             for i in [0..(nHumans-1)] do
@@ -264,7 +277,6 @@ module GamePlay =
             // Game variables:
             let mutable turnCount = 0
             let mutable checkmate = false
-            let mutable isCheck   = false // If the king is in check.
             let mutable pTurn     = 0 // whoose turn it is.
 
             // Start the game loop:
@@ -281,8 +293,14 @@ module GamePlay =
                 Array.iter this.printPiece players.[0].pieces
                 Array.iter this.printPiece players.[1].pieces
 
-                // Ask player for next move:
-                let nextM = players.[pTurn].nextMove(board)
+                if (this.isCheck(players.[pTurn].pieces.[0].position.Value,
+                        players.[if pTurn = 0 then 1 else 0]))
+                then
+                    printf "%s is in check!" players.[pTurn].name
+                    nextM <- players.[pTurn].nextMove(board)
+                else
+                    // Ask player for next move:
+                    nextM <- players.[pTurn].nextMove(board)
 
                 do printf "\nMove made: "
 
