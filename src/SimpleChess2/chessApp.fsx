@@ -30,6 +30,13 @@ let bPieces = [|
                 king (Black) :> chessPiece;
                 rook (Black) :> chessPiece|]
 
+// Positions of the pieces:
+let piecePositions :Position Option list =
+    [Some (0,0); // K
+    Some (1,1);  // R
+    Some (4,1);  // k
+    Some (3,1)]  // r
+
 // The players (white first):
 let players :Player list = [
         Human((sprintf "Human-%i (%A)" 1 White), White);
@@ -40,7 +47,7 @@ let game = GamePlay.Game(
             players,
             wPieces,
             bPieces,
-            numberOfHumanPlayers,
+            piecePositions,
             whitePlayerColor,
             blackPlayerColor,
             boardColor)
