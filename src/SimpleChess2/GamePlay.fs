@@ -240,13 +240,15 @@ module GamePlay =
                 if pTurn = 0 then pTurn <- 1 else pTurn <- 0
 
                 // Check if chessmate (if the kings are out of moves):
-                if players.[1].pieces.[0].availableMoves(board).[1].IsEmpty
+                if players.[1].pieces.[0].availableMoves(board).[1].IsEmpty ||
+                    Array.isEmpty players.[1].pieces
                 then
                     cprintf wCol (sprintf "\nCheckmate! %s won the game."
                         (players.[0].name))
                     whoWon <- Some players.[0].color
                     checkmate <- true
-                elif players.[0].pieces.[0].availableMoves(board).[1].IsEmpty
+                elif players.[0].pieces.[0].availableMoves(board).[1].IsEmpty ||
+                        Array.isEmpty players.[0].pieces
                 then
                     cprintf bCol (sprintf "\nCheckmate! %s won the game."
                         (players.[1].name))
@@ -332,6 +334,22 @@ module GamePlay =
         /// <param name="board">Chess board the move is to be played on.</param>
         /// <returns>The chosen source and target positions in a list.</returns>
         override this.nextMove (board:Board) (enemyPieces:chessPiece [])
+            :Position list =
+
+            let r = Random();
+            let rPiece = this.pieces |> Seq.item (r.Next this.pieces.Length)
+            let rMove = rPiece.availableMoves(board).[1]
+
+            // return:
+            rMove
+
+        /// <summary>
+        /// The computer tries to be smart. (11g.4)
+        /// </summary>
+        /// <param name="board">Chess board the move is to be played on.</param>
+        /// <returns>The chosen source and target positions in a list.</returns>
+        /// override this.nextMove (board:Board) (enemyPieces:chessPiece []) // Not working very good...
+        member this.nextMove2 (board:Board) (enemyPieces:chessPiece [])
             :Position list =
 
             let simPlayers :Player list = if this.color = White
