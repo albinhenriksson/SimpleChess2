@@ -338,10 +338,12 @@ module GamePlay =
 
             let r = Random();
             let rPiece = this.pieces |> Seq.item (r.Next this.pieces.Length)
-            let rMove = rPiece.availableMoves(board).[1]
+            let aMoves = rPiece.availableMoves(board).[1]
+            let computerMoves = [rPiece.position.Value; aMoves |>
+                                    Seq.item (r.Next aMoves.Length)]
 
             // return:
-            rMove
+            computerMoves
 
         /// <summary>
         /// The computer tries to be smart. (11g.4)
@@ -405,6 +407,5 @@ module GamePlay =
                         else points <- simPoints.[1]::points
             points <- List.rev points
             [fst avMoves.[points |> List.findIndex (fun elm -> elm = List.max points)]]
-            let rPiece = this.pieces |> Seq.item (r.Next this.pieces.Length)
-            rPiece.availableMoves(board).[1]
+            
     end
