@@ -1,6 +1,5 @@
 namespace SimpleChess2
 
-open System
 module Pieces =
     open Chess
 
