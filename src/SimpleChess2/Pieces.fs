@@ -159,8 +159,7 @@ module Pieces =
             let mutable avMoves = (fst (board.getVacantNNeighbours this))
             let mutable attackMoves :Position list = 
                 [for p in snd (board.getVacantNNeighbours this) do
-                    if p.color <> this.color &&
-                        p.nameOfType <> "king"
+                    if p.color <> this.color
                     then yield p.position.Value]
 
             // Return:

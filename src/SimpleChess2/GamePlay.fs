@@ -1,9 +1,12 @@
 namespace SimpleChess2
 
 open System
+
 module GamePlay =
     open Chess
     open Pieces
+
+    // For later use:
 
     //// Methods:
 
@@ -83,93 +86,7 @@ module GamePlay =
             with get() = _pieces
             and set(p:chessPiece[]) = _pieces <- p
         
-        abstract member nextMove : Board -> Position list
-    end
-
-    /// <summary>
-    /// Simulation of a human chess-player. Subclass of Player.
-    /// </summary>
-    /// <param name="name">The players name.</param>
-    /// <param name="color">The players color.</param>
-    type Human(name:string, color:Color) = class
-        inherit Player(name, color)
-
-        /// <summary>
-        /// The human picks a move by entering a codestring. The codestring is
-        /// then checked for validity and if it checks out the source and target
-        /// position is returned.
-        /// </summary>
-        /// <param name="board">Chess board the move is to be played on.</param>
-        /// <returns>The chosen source and target positions in a list.</returns>
-        override this.nextMove(board:Board) :Position list =
-
-            // Ask for input:
-            do printfn "%s%s"
-                "\nEnter a codestring to move, enter quit to exit. "
-                    "(E.g. \"a4 a5\")"
-            do printf "Input: "
-            let input = System.Console.ReadLine()
-
-            let validNumbers = ['1';'2';'3';'4';'5';'6';'7';'8']
-            let validLetters = ['a';'b';'c';'d';'e';'f';'g';'h']
-
-            if input = "quit" then System.Environment.Exit(0); []
-            // Check if input is valid:
-            elif input.Length <> 5
-            then
-                do printfn "Codestring invalid: wrong length."
-                this.nextMove(board)
-            elif not (List.contains input.[0] validLetters) ||
-                    not (List.contains input.[1] validNumbers) ||
-                        not (List.contains input.[3] validLetters) ||
-                            not (List.contains input.[4] validNumbers)
-                then
-                    do printfn
-                        "Codestring invalid: unrecognized letters/numbers."
-                    this.nextMove(board)
-            else
-                let move = parseInput input
-                if board.Item(fst move.[0], snd move.[0]).IsNone
-                then
-                    do printfn "Invalid move: No piece there."
-                    this.nextMove(board)
-                else
-                    let movePiece = board.Item(fst move.[0], snd move.[0]).Value
-                    if movePiece.color <> this.color
-                    then
-                        do printfn "Invalid move: Not your piece."
-                        this.nextMove(board)
-                    elif not (List.contains (move.[1]) 
-                                (movePiece.availableMoves(board).[1]))
-                    then
-                        do printfn "Invalid move: Not legal."
-                        this.nextMove(board)
-                    // if nothing weird happened, return chosen move:
-                    else move
-    end
-
-    /// <summary>
-    /// Simulation of a computer chess-player. Subclass of Player.
-    /// </summary>
-    /// <param name="name">The players name.</param>
-    /// <param name="color">The players color.</param>
-    type Computer(name:string, color:Color) = class
-        inherit Player(name, color)
-
-        /// <summary>
-        /// The computer chooses a random move.
-        /// </summary>
-        /// <param name="board">Chess board the move is to be played on.</param>
-        /// <returns>The chosen source and target positions in a list.</returns>
-        override this.nextMove(board:Board) :Position list =
-            let r = Random();
-            let rPiece = this.pieces |> Seq.item (r.Next this.pieces.Length)
-            let aMoves = rPiece.availableMoves(board).[1]
-            let computerMoves = [rPiece.position.Value; aMoves |>
-                                    Seq.item (r.Next aMoves.Length)]
-
-            // return:
-            computerMoves
+        abstract member nextMove : Board -> chessPiece [] -> Position list
     end
 
     /// <summary>Simulation of a chess game.</summary>
@@ -178,7 +95,10 @@ module GamePlay =
     /// <param name="bCol">Black player color.</param>
     /// <param name="boardCol">Color of the chessboard.</param>
     type Game(
-                nHumans:int,
+                playerList:Player list,
+                wPieces:chessPiece [],
+                bPieces:chessPiece [],
+                pPos:Position Option list,
                 wCol:ConsoleColor,
                 bCol:ConsoleColor,
                 boardCol:ConsoleColor) = class
@@ -188,7 +108,7 @@ module GamePlay =
         /// <summary>Print info about a chess piece.</summary>
         /// <param name="p">The chess piece.</param>
         member this.printPiece (p:chessPiece) :unit =
-            let aMoves = p.availableMoves board
+            let avMoves = p.availableMoves board
             // Print in the correct color:
             let mutable fgCol = Console.ForegroundColor
             if p.color = White then fgCol <- wCol
@@ -196,14 +116,14 @@ module GamePlay =
             cprintf fgCol (sprintf "%A can move from %s to:"
                             p (nicePos p.position.Value))
             // Print available moves:
-            aMoves.[1] |>
+            avMoves.[1] |>
                 List.iter (fun pos ->
                             cprintf fgCol (sprintf " %s," (nicePos pos)))
             // Print attack moves:
-            if not aMoves.[0].IsEmpty
+            if not avMoves.[0].IsEmpty
             then
                 cprintf ConsoleColor.DarkRed "\b and attack:"
-                aMoves.[0] |>
+                avMoves.[0] |>
                     List.iter (fun pos ->
                                 cprintf ConsoleColor.DarkRed
                                     (sprintf " %s," (nicePos pos)))
@@ -236,38 +156,22 @@ module GamePlay =
             check
 
         /// <summary>Start and run the game.</summary>
-        member this.run() =
+        member this.run() :(Color * int list) =
         
-            let mutable players :Player list = []
+            let mutable players :Player list = playerList
             let mutable colors = [White;Black]
             let mutable  nextM :Position list = []
-
-            // Add human(s):
-            for i in [0..(nHumans-1)] do
-                players <- List.append players
-                    [Human((sprintf "Human-%i (%A)" (i+1) colors.[0]), colors.[0])]
-                colors <- colors.Tail
-            
-            //Add computer(s):
-            for i in [1..(2-nHumans)] do
-                    players <- List.append players
-                        [Computer((sprintf "Computer-%i (%A)"
-                                    i colors.[0]), colors.[0])]
-                    colors <- colors.Tail
+            let mutable points = [0;0]
 
             // Hand out the pieces:
-            players.[0].pieces <- [|
-                king (White) :> chessPiece;
-                rook (White) :> chessPiece|]
-            players.[1].pieces <- [|
-                king (Black) :> chessPiece;
-                rook (Black) :> chessPiece|]
+            players.[0].pieces <- wPieces 
+            players.[1].pieces <- bPieces
 
             // Place pieces on the board
-            board.[0,0] <- Some players.[0].pieces.[0] // White king.
-            board.[1,1] <- Some players.[0].pieces.[1] // White rook.
-            board.[5,1] <- Some players.[1].pieces.[0] // Black king.
-            board.[4,1] <- Some players.[1].pieces.[1] // Black rook.
+            board.[fst pPos.[0].Value,snd pPos.[0].Value] <- Some players.[0].pieces.[0] // White king.
+            board.[fst pPos.[1].Value,snd pPos.[1].Value] <- Some players.[0].pieces.[1] // White rook.
+            board.[fst pPos.[2].Value,snd pPos.[2].Value] <- Some players.[1].pieces.[0] // Black king.
+            board.[fst pPos.[3].Value,snd pPos.[3].Value] <- Some players.[1].pieces.[1] // Black rook.
 
             // Welcome message:
             printf ">Welcome to SimpleChess!\n"
@@ -276,6 +180,7 @@ module GamePlay =
             
             // Game variables:
             let mutable turnCount = 0
+            let mutable whoWon :Color option = None
             let mutable checkmate = false
             let mutable pTurn     = 0 // whoose turn it is.
 
@@ -284,6 +189,7 @@ module GamePlay =
 
                 turnCount <- turnCount + 1
                 let pCol = if pTurn = 0 then wCol else bCol // Correct color.
+                let wTurn = if pTurn = 0 then 1 else 0 // Waiting player number.
                     
                 // Print turn info:
                 do printf "\n>Turn %i: " turnCount
@@ -294,13 +200,13 @@ module GamePlay =
                 Array.iter this.printPiece players.[1].pieces
 
                 if (this.isCheck(players.[pTurn].pieces.[0].position.Value,
-                        players.[if pTurn = 0 then 1 else 0]))
+                        players.[wTurn]))
                 then
                     printf "\n%s is in check!\n" players.[pTurn].name
-                    nextM <- players.[pTurn].nextMove(board)
+                    nextM <- players.[pTurn].nextMove board players.[wTurn].pieces
                 else
                     // Ask player for next move:
-                    nextM <- players.[pTurn].nextMove(board)
+                    nextM <- players.[pTurn].nextMove board players.[wTurn].pieces
 
                 do printf "\nMove made: "
 
@@ -309,6 +215,10 @@ module GamePlay =
                 then
                     let taker = board.[fst nextM.[0], snd nextM.[0]].Value
                     let taken = board.[fst nextM.[1], snd nextM.[1]].Value
+
+                    if taker.color = White
+                    then points <- [points.[0] + 3; points.[1] - 3 ]
+                    else points <- [points.[0] - 3; points.[1] + 3 ]
 
                     // Print what happened:
                     cprintf pCol (sprintf "[%s -> %s], %s took %s!\n"
@@ -330,14 +240,172 @@ module GamePlay =
                 if pTurn = 0 then pTurn <- 1 else pTurn <- 0
 
                 // Check if chessmate (if the kings are out of moves):
-                if players.[1].pieces.[0].availableMoves(board).[1].IsEmpty
+                if players.[1].pieces.[0].availableMoves(board).[1].IsEmpty ||
+                    Array.isEmpty players.[1].pieces
                 then
                     cprintf wCol (sprintf "\nCheckmate! %s won the game."
                         (players.[0].name))
+                    whoWon <- Some players.[0].color
                     checkmate <- true
-                elif players.[0].pieces.[0].availableMoves(board).[1].IsEmpty
+                elif players.[0].pieces.[0].availableMoves(board).[1].IsEmpty ||
+                        Array.isEmpty players.[0].pieces
                 then
                     cprintf bCol (sprintf "\nCheckmate! %s won the game."
                         (players.[1].name))
+                    whoWon <- Some players.[1].color
                     checkmate <- true
+            (whoWon.Value, points)
+    end
+
+    /// <summary>
+    /// Simulation of a human chess-player. Subclass of Player.
+    /// </summary>
+    /// <param name="name">The players name.</param>
+    /// <param name="color">The players color.</param>
+    type Human(name:string, color:Color) = class
+        inherit Player(name, color)
+
+        /// <summary>
+        /// The human picks a move by entering a codestring. The codestring is
+        /// then checked for validity and if it checks out the source and target
+        /// position is returned.
+        /// </summary>
+        /// <param name="board">Chess board the move is to be played on.</param>
+        /// <returns>The chosen source and target positions in a list.</returns>
+        override this.nextMove (board:Board) (enemyPieces:chessPiece [])
+            :Position list =
+
+            // Ask for input:
+            do printfn "%s%s"
+                "\nEnter a codestring to move, enter quit to exit. "
+                    "(E.g. \"a4 a5\")"
+            do printf "Input: "
+            let input = System.Console.ReadLine()
+
+            let validNumbers = ['1';'2';'3';'4';'5';'6';'7';'8']
+            let validLetters = ['a';'b';'c';'d';'e';'f';'g';'h']
+
+            if input = "quit" then System.Environment.Exit(0); []
+            // Check if input is valid:
+            elif input.Length <> 5
+            then
+                do printfn "Codestring invalid: wrong length."
+                this.nextMove board enemyPieces
+            elif not (List.contains input.[0] validLetters) ||
+                    not (List.contains input.[1] validNumbers) ||
+                        not (List.contains input.[3] validLetters) ||
+                            not (List.contains input.[4] validNumbers)
+                then
+                    do printfn
+                        "Codestring invalid: unrecognized letters/numbers."
+                    this.nextMove board enemyPieces
+            else
+                let move = parseInput input
+                if board.Item(fst move.[0], snd move.[0]).IsNone
+                then
+                    do printfn "Invalid move: No piece there."
+                    this.nextMove board enemyPieces
+                else
+                    let movePiece = board.Item(fst move.[0], snd move.[0]).Value
+                    if movePiece.color <> this.color
+                    then
+                        do printfn "Invalid move: Not your piece."
+                        this.nextMove board enemyPieces
+                    elif not (List.contains (move.[1]) 
+                                (movePiece.availableMoves(board).[1]))
+                    then
+                        do printfn "Invalid move: Not legal."
+                        this.nextMove board enemyPieces
+                    // if nothing weird happened, return chosen move:
+                    else move
+    end
+
+    /// <summary>
+    /// Simulation of a computer chess-player. Subclass of Player.
+    /// </summary>
+    /// <param name="name">The players name.</param>
+    /// <param name="color">The players color.</param>
+    type Computer(name:string, color:Color) = class
+        inherit Player(name, color)
+
+        /// <summary>
+        /// The computer chooses a random move.
+        /// </summary>
+        /// <param name="board">Chess board the move is to be played on.</param>
+        /// <returns>The chosen source and target positions in a list.</returns>
+        override this.nextMove (board:Board) (enemyPieces:chessPiece [])
+            :Position list =
+
+            let r = Random();
+            let rPiece = this.pieces |> Seq.item (r.Next this.pieces.Length)
+            let aMoves = rPiece.availableMoves(board).[1]
+            let computerMoves = [rPiece.position.Value; aMoves |>
+                                    Seq.item (r.Next aMoves.Length)]
+
+            // return:
+            computerMoves
+
+        /// <summary>
+        /// The computer tries to be smart. (11g.4)
+        /// </summary>
+        /// <param name="board">Chess board the move is to be played on.</param>
+        /// <returns>The chosen source and target positions in a list.</returns>
+        /// override this.nextMove (board:Board) (enemyPieces:chessPiece []) // Not working very good...
+        member this.nextMove2 (board:Board) (enemyPieces:chessPiece [])
+            :Position list =
+
+            let simPlayers :Player list = if this.color = White
+                                           then [this;(Computer("SimComputer", Black))]
+                                           else [(Computer("SimComputer", White));this]
+
+            let avMoves = List.append ((this.pieces.[0].availableMoves board).[1] |>
+                            List.map (fun elm -> (elm,this.pieces.[0])))
+                                ((this.pieces.[0].availableMoves board).[1] |>
+                                    List.map (fun elm -> (elm,this.pieces.[0])))
+            
+            //for simMove in avMoves do
+            let mutable points :int list = []
+            let r = Random()
+
+            for elm in avMoves do
+                match elm with
+                    | (simMove:Position), (simPiece:chessPiece) ->
+                        let sim = Game(
+                                    simPlayers,
+                                    (if this.color = White then this.pieces else enemyPieces),
+                                    (if this.color = Black then this.pieces else enemyPieces),
+                                    (if this.color = White
+                                     then if (simPiece).nameOfType = "king"
+                                          then [Some (simMove);
+                                                this.pieces.[1].position;
+                                                    enemyPieces.[0].position;
+                                                        enemyPieces.[1].position]
+                                          else [this.pieces.[0].position;
+                                                Some (simMove);
+                                                    enemyPieces.[0].position;
+                                                        enemyPieces.[1].position]
+                                     else if (simPiece).nameOfType = "king"
+                                          then [enemyPieces.[0].position;
+                                                enemyPieces.[1].position;
+                                                    Some (simMove);
+                                                        this.pieces.[1].position]
+                                          else [enemyPieces.[0].position;
+                                                    enemyPieces.[1].position;
+                                                        this.pieces.[0].position;
+                                                            Some (simMove)]),
+                                    ConsoleColor.Green,
+                                    ConsoleColor.Black,
+                                    ConsoleColor.DarkMagenta)                                  
+
+                        let simResult = sim.run()
+                        let mutable simPoints = snd simResult
+                        if fst simResult = White
+                        then simPoints <- [simPoints.[0] + 100; simPoints.[1] - 100]
+                        else simPoints <- [simPoints.[0] - 100; simPoints.[1] + 100]
+                        if this.color = White
+                        then points <- simPoints.[0]::points
+                        else points <- simPoints.[1]::points
+            points <- List.rev points
+            [fst avMoves.[points |> List.findIndex (fun elm -> elm = List.max points)]]
+            
     end
